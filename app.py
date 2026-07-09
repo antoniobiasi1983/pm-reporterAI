@@ -1,33 +1,19 @@
 import streamlit as st
-from openai import OpenAI
+import google.generativeai as genai
 import pandas as pd
 
-# 1. Configurazione OpenAI
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# Configurazione (assicurati di avere la chiave AIza nei secrets come GOOGLE_API_KEY)
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+model = genai.GenerativeModel('gemini-1.5-flash') # Il modello Flash è gratis e veloce
 
-st.title("AI PM Reporter (OpenAI Edition)")
+st.title("AI PM Reporter (Gratuito)")
 
-uploaded_file = st.file_uploader("Carica il file CSV", type=["csv"])
+uploaded_file = st.file_uploader("Carica CSV", type=["csv"])
 
-if uploaded_file:
+if uploaded_file and st.button("Analizza con AI"):
     df = pd.read_csv(uploaded_file)
-    st.write("Dati caricati:")
-    st.dataframe(df.head())
+    prompt = f"Analizza questi dati di Project Management: {df.to_string()}"
     
-    if st.button("Analizza con AI"):
-        # Convertiamo i dati in testo per l'AI
-        dati_testo = df.to_string()
-        
-        try:
-            # 2. Chiamata a OpenAI
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "Sei un PM esperto. Analizza i dati del CSV fornito."},
-                    {"role": "user", "content": f"Analizza questi dati:\n{dati_testo}"}
-                ]
-            )
-            st.write("### Risultato dell'analisi:")
-            st.write(response.choices[0].message.content)
-        except Exception as e:
-            st.error(f"Errore durante l'analisi: {e}")
+    # Questa chiamata è GRATUITA col piano Free di Gemini
+    response = model.generate_content(prompt)
+    st.write(response.text)
