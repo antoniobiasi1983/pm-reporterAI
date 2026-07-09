@@ -2,9 +2,9 @@ import streamlit as st
 import google.generativeai as genai
 import pandas as pd
 
-# Configurazione (assicurati di avere la chiave AIza nei secrets come GOOGLE_API_KEY)
+# Usa la chiave che hai nei tuoi Secrets chiamata GOOGLE_API_KEY
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash') # Il modello Flash è gratis e veloce
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 st.title("AI PM Reporter (Gratuito)")
 
@@ -12,8 +12,13 @@ uploaded_file = st.file_uploader("Carica CSV", type=["csv"])
 
 if uploaded_file and st.button("Analizza con AI"):
     df = pd.read_csv(uploaded_file)
+    st.dataframe(df.head())
+    
     prompt = f"Analizza questi dati di Project Management: {df.to_string()}"
     
-    # Questa chiamata è GRATUITA col piano Free di Gemini
-    response = model.generate_content(prompt)
-    st.write(response.text)
+    try:
+        response = model.generate_content(prompt)
+        st.write("### Risultato:")
+        st.write(response.text)
+    except Exception as e:
+        st.error(f"Errore: {e}")
