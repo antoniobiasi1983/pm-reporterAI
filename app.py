@@ -51,55 +51,39 @@ if uploaded_file:
             st.rerun()
 
     with t2:
-        st.subheader("Carica lo Snapshot per l'AI")
-        uploaded_image = st.file_uploader("Scegli immagine", type=["png", "jpg", "jpeg"], key="vision_uploader")
+        st.subheader("Analisi Snapshot")
+        uploaded_image = st.file_uploader("Scegli immagine", type=["png", "jpg", "jpeg"])
         
         if uploaded_image:
-            # Visualizza l'anteprima dell'immagine
             image_display = Image.open(uploaded_image)
-            st.image(image_display, caption="Snapshot caricato", use_container_width=True)
+            st.image(image_display, use_container_width=True)
             
-            if st.button("Analizza Immagine", key="analyze_img_btn"):
-                with st.spinner("L'AI sta analizzando il grafico..."):
+            if st.button("Analizza Immagine"):
+                with st.spinner("Cerco il modello attivo..."):
                     try:
-                        # Conversione dell'immagine in base64
-                        # È fondamentale usare io.BytesIO per gestire il file caricato
-                        import io
-                        buffered = io.BytesIO()
-                        image_display.save(buffered, format=image_display.format if image_display.format else 'PNG')
-                        img_str = base64.b64encode(buffered.getvalue()).decode()
+                        # 1. Chiediamo a Groq quali modelli hai attivi
+                        models = client.models.list()
+                        vision_models = [m.id for m in models.data if "vision" in m.id]
                         
-                        # Chiamata al modello Vision
-                        # NOTA: Assicurati di usare un modello che supporti la visione (es. llama-3.2-90b-vision-preview)
-                        # Se il tuo account Groq non ha accesso a questo modello, l'errore sarà qui.
-                        model_vision = "llama-3.2-90b-vision-preview" 
-                        
-                        response = client.chat.completions.create(
-                            model=model_vision,
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "text",
-                                            "text": "Analizza questo grafico di Azure DevOps. Identifica trend, colli di bottiglia e punti di forza. Sii sintetico e professionale."
-                                        },
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {
-                                                "url": f"data:image/{image_display.format.lower() if image_display.format else 'png'};base64,{img_str}"
-                                            }
-                                        }
-                                    ]
-                                }
-                            ],
-                            max_tokens=1000
-                        )
-                        
-                        # Visualizza la risposta dell'AI
-                        st.write("### Risultato Analisi Visiva:")
-                        st.success(response.choices[0].message.content)
-                        
+                        if not vision_models:
+                            st.error("Non trovo modelli Vision attivi sul tuo account!")
+                        else:
+                            model_da_usare = vision_models[0] # Prende il primo disponibile
+                            st.write(f"Uso il modello: {model_da_usare}")
+                            
+                            # 2. Conversione immagine
+                            buffered = io.BytesIO()
+                            image_display.save(buffered, format="PNG")
+                            img_str = base64.b64encode(buffered.getvalue()).decode()
+                            
+                            # 3. Chiamata
+                            response = client.chat.completions.create(
+                                model=model_da_usare,
+                                messages=[{"role": "user", "content": [
+                                    {"type": "text", "text": "Analizza questo grafico."},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_str}"}}
+                                ]}]
+                            )
+                            st.success(response.choices[0].message.content)
                     except Exception as e:
-                        st.error(f"Errore durante l'analisi dell'immagine: {e}")
-                        st.info("Assicurati di avere accesso al modello 'llama-3.2-90b-vision-preview' su Groq.")
+                        st.error(f"Errore: {e}")
