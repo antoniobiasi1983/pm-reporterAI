@@ -11,14 +11,14 @@ uploaded_file = st.file_uploader("Carica il file CSV", type=["csv"])
 
 if uploaded_file is not None:
     try:
-        # Aggiungiamo 'encoding' per evitare errori con caratteri strani
         df = pd.read_csv(uploaded_file, encoding='utf-8', on_bad_lines='skip')
         st.write("Dati caricati:")
         st.dataframe(df.head())
         
         if st.button("Analizza con AI"):
             dati_testo = df.to_string()
-            with st.spinner('L'IA sta analizzando...'):
+            # Qui ho cambiato le virgolette per evitare l'errore precedente
+            with st.spinner("L'IA sta analizzando..."):
                 chat_completion = client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": "Sei un PM esperto. Analizza i dati CSV."},
