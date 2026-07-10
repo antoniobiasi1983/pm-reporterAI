@@ -1,24 +1,31 @@
 import streamlit as st
-import google.generativeai as genai
 import pandas as pd
+from groq import Groq
 
-# Usa la chiave che hai nei tuoi Secrets chiamata GOOGLE_API_KEY
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash')
+# Inizializza il client Groq con la chiave nei secrets
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-st.title("AI PM Reporter (Gratuito)")
+st.title("AI PM Reporter")
 
-uploaded_file = st.file_uploader("Carica CSV", type=["csv"])
+uploaded_file = st.file_uploader("Carica il tuo file CSV", type=["csv"])
 
-if uploaded_file and st.button("Analizza con AI"):
+if uploaded_file:
     df = pd.read_csv(uploaded_file)
+    st.write("Dati caricati correttamente:")
     st.dataframe(df.head())
     
-    prompt = f"Analizza questi dati di Project Management: {df.to_string()}"
-    
-    try:
-        response = model.generate_content(prompt)
-        st.write("### Risultato:")
-        st.write(response.text)
-    except Exception as e:
-        st.error(f"Errore: {e}")
+    if st.button("Analizza con AI"):
+        try:
+            dati_testo = df.to_string()
+            # Chiamata a Groq con Llama 3
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "Sei un PM esperto. Analizza i dati CSV forniti."},
+                    {"role": "user", "content": f"Analizza questi dati:\n{dati_testo}"}
+                ],
+                model="llama-3.3-70b-versatile",
+            )
+            st.write("### Risultato dell'analisi:")
+            st.write(chat_completion.choices[0].message.content)
+        except Exception as e:
+            st.error(f"Errore durante l'analisi: {e}")
