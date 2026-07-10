@@ -1,51 +1,36 @@
 import streamlit as st
 import pandas as pd
 from groq import Groq
-from PIL import Image
-import io
-import base64
 
-st.set_page_config(layout="wide")
-st.title("🚀 AI PMO Executive Dashboard")
+st.title("AI PM Reporter - Dashboard")
 
-# Configurazione Groq
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# Controlliamo se la chiave API è impostata
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except Exception:
+    st.error("Chiave API non trovata nei secrets di Streamlit.")
+    st.stop()
 
-# Creiamo due schede separate
-tab1, tab2 = st.tabs(["📊 Analisi Dati (CSV)", "🖼️ Analisi Immagini"])
+uploaded_file = st.file_uploader("Carica il file CSV", type=["csv"])
 
-# --- TAB 1: ANALISI DATI ---
-with tab1:
-    st.subheader("Carica il tuo CSV")
-    uploaded_file = st.file_uploader("Carica file CSV", type=["csv"])
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file, encoding='utf-8', on_bad_lines='skip')
+if uploaded_file is not None:
+    try:
+        # Leggiamo il file
+        df = pd.read_csv(uploaded_file)
+        st.write("File caricato correttamente!")
         st.dataframe(df.head())
-        if st.button("Analizza Dati"):
-            with st.spinner("L'IA sta analizzando..."):
-                prompt = f"Sei un PM esperto. Analizza questi dati: {df.to_string()}"
-                response = client.chat.completions.create(
-                    messages=[{"role": "user", "content": prompt}],
+        
+        if st.button("Analizza i dati"):
+            with st.spinner("Analisi in corso..."):
+                dati_testo = df.to_string()
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": "Sei un PM esperto. Analizza i dati."},
+                        {"role": "user", "content": f"Analizza questi dati:\n{dati_testo}"}
+                    ],
                     model="llama-3.3-70b-versatile",
                 )
-                st.write(response.choices[0].message.content)
-
-# --- TAB 2: ANALISI IMMAGINI ---
-with tab2:
-    st.subheader("Carica Snapshot")
-    uploaded_image = st.file_uploader("Carica immagine", type=["png", "jpg", "jpeg"])
-    if uploaded_image:
-        image = Image.open(uploaded_image)
-        st.image(image, caption="Snapshot", use_container_width=True)
-        if st.button("Analizza Immagine"):
-            with st.spinner("Analisi immagine in corso..."):
-                # Convertiamo in base64
-                buffered = io.BytesIO()
-                image.save(buffered, format="PNG")
-                img_str = base64.b64encode(buffered.getvalue()).decode()
-                
-                # Chiamata al modello (usiamo llama-3.3-70b-versatile che gestisce bene anche i contesti)
-                prompt = "Analizza questa immagine di un grafico di progetto. Cosa noti?"
-                # Nota: per la visione pura servirebbe un modello vision specifico, 
-                # se l'errore persiste è perché il modello non accetta immagini in questo modo.
-                st.info("Funzionalità Vision attiva. (Assicurati di usare un modello vision-ready su Groq)")
+                st.write("### Risultato:")
+                st.write(chat_completion.choices[0].message.content)
+    except Exception as e:
+        st.error(f"Errore durante la lettura del file: {e}")
